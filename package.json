@@ -1,0 +1,33 @@
+{
+  "name": "triage",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI triage for Troubleshoot support bundles",
+  "license": "MIT",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "analyze": "tsx src/cli.ts",
+    "gen:sample": "node scripts/generate-sample-bundle.mjs && node scripts/generate-sample-bundle.mjs --healthy",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^20.19.0",
+    "playwright": "^1.60.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

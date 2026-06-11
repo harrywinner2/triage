@@ -1,0 +1,28 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+
+# deps / build
+node_modules/
+dist/
+coverage/
+
+# data store (runtime analyses)
+data/
+*.local.json
+
+# os / editor
+.DS_Store
+*.log
+.idea/
+.vscode/
+
+# generated bundle workspace
+samples/sample-support-bundle/
+samples/healthy-support-bundle/
+tmp/
+
+# demo intermediates (narration clips + screen captures); demo.mp4 is committed
+demo/audio/
+demo/clips/
