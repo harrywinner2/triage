@@ -401,7 +401,7 @@ function renderReport(a){
   document.getElementById('meta').innerHTML=[
     ["Cluster",m.clusterVersion||'?'],["Collected",m.collectedAt?m.collectedAt.replace('T',' ').replace('Z',''):'—'],["Nodes",m.nodeCount],
     ["Namespaces",m.namespaceCount],["Pods",`${m.runningPods}/${m.podCount} running`],["Failing pods",m.failingPods],
-    ["Bundle size",(a.sizeBytes/1048576).toFixed(1)+" MB"]
+    ["Bundle size",a.sizeBytes<1048576?(a.sizeBytes/1024).toFixed(0)+" KB":(a.sizeBytes/1048576).toFixed(1)+" MB"]
   ].map(([k,val])=>`<div class="m"><div class="k">${k}</div><div class="v">${val}</div></div>`).join('');
   document.getElementById('t-fcount').textContent=`(${a.findings.length})`;
   document.getElementById('ai-off-banner').classList.toggle('hidden',a.aiEnabled);

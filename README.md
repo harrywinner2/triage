@@ -6,9 +6,11 @@ When a Kubernetes app breaks inside a customer's disconnected environment, the v
 
 Triage does the first pass for you. Drop in a support bundle and it parses the archive, runs a catalog of deterministic failure detectors, then uses an LLM to correlate the findings into a root-cause narrative and a prioritized fix plan — with every claim linked back to the evidence it came from.
 
-> **Live demo:** _(URL added after deploy — see `BUILD_LOG.md`)_
+> **Live demo:** **https://triage-production-2f40.up.railway.app** — click *Analyze sample bundle* to try it instantly.
 
 ![Triage report](design/home.png)
+
+![Findings with evidence](design/findings.png)
 
 ## How it works
 
