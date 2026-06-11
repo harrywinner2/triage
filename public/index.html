@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Triage — AI triage for Troubleshoot support bundles</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg-elevated:#121829; --bg-inset:#0e1424; --border:#232b40; --border-strong:#303b57;
+    --text:#e6ebf5; --text-muted:#9aa6c0; --text-faint:#6b7691;
+    --brand:#2bd9c4; --brand-strong:#14b8a6; --brand-ink:#04221f; --indigo:#6366f1;
+    --sev-critical:#f0506e; --sev-high:#ff8a4c; --sev-medium:#f5c451; --sev-low:#5aa9ff; --sev-info:#8b95ad; --ok:#34d399;
+    --radius:10px; --radius-sm:7px; --radius-pill:999px;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 8px 24px rgba(2,6,18,.45);
+    --gap:16px; --maxw:1180px;
+    --mono:"JetBrains Mono","SF Mono",ui-monospace,Menlo,monospace;
+    --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--brand);text-decoration:none}
+  code,pre,.mono{font-family:var(--mono)}
+  .app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+
+  /* sidebar */
+  .side{background:var(--bg-elevated);border-right:1px solid var(--border);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:700;font-size:18px;letter-spacing:-.01em}
+  .brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--brand),var(--indigo));display:grid;place-items:center;color:var(--brand-ink);font-weight:800;font-size:15px}
+  .navlink{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--radius-sm);color:var(--text-muted);font-weight:500;cursor:pointer;user-select:none}
+  .navlink:hover{background:#1a2236;color:var(--text)}
+  .navlink.active{background:#16203a;color:var(--text)}
+  .navlink.active .ic{color:var(--brand)}
+  .navlink .ic{width:18px;height:18px;color:var(--text-faint);flex:none}
+  .side .spacer{flex:1}
+  .side .foot{color:var(--text-faint);font-size:12px;padding:8px}
+
+  /* main */
+  main{padding:30px 34px 80px;max-width:var(--maxw);width:100%}
+  .page{display:none}
+  .page.active{display:block;animation:fade .2s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:0 0 4px}
+  h2{font-size:17px;font-weight:650;margin:26px 0 12px}
+  .sub{color:var(--text-muted);margin:0 0 22px}
+  .muted{color:var(--text-muted)} .faint{color:var(--text-faint)}
+
+  .card{background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .pad{padding:18px 20px}
+  .row{display:flex;gap:var(--gap)} .wrap{flex-wrap:wrap} .between{justify-content:space-between} .center{align-items:center}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:550;font-size:14px;border-radius:var(--radius-sm);padding:10px 16px;border:1px solid transparent;cursor:pointer;transition:filter .12s,transform .12s,background .12s}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:var(--brand);color:var(--brand-ink)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--text);border-color:var(--border-strong)}
+  .btn.ghost:hover{background:#1a2236}
+
+  /* dropzone */
+  .dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius);padding:46px 24px;text-align:center;background:var(--bg-inset);transition:border-color .15s,background .15s;cursor:pointer}
+  .dropzone:hover{border-color:var(--brand);background:#0f1830}
+  .dropzone .big{font-size:17px;font-weight:600;margin:12px 0 4px}
+  .dz-ic{width:42px;height:42px;color:var(--brand)}
+
+  /* pipeline explainer */
+  .pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .pipe .step{background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px}
+  .pipe .num{width:24px;height:24px;border-radius:6px;background:#16203a;color:var(--brand);display:grid;place-items:center;font-weight:700;font-size:13px;margin-bottom:10px}
+  .pipe h3{margin:0 0 4px;font-size:14px}
+  .pipe p{margin:0;font-size:13px;color:var(--text-muted)}
+
+  /* verdict banner */
+  .verdict{display:flex;gap:18px;align-items:stretch;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);background:var(--bg-elevated)}
+  .verdict .bar{width:6px;flex:none}
+  .verdict .body{padding:18px 20px;flex:1}
+  .verdict .head{font-size:20px;font-weight:700;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+  .counts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .count{display:flex;align-items:center;gap:7px;background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--radius-pill);padding:5px 12px;font-size:13px;font-weight:600}
+  .dot{width:9px;height:9px;border-radius:50%}
+
+  /* meta strip */
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:16px}
+  .meta .m{background:var(--bg-elevated);padding:13px 16px}
+  .meta .k{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint)}
+  .meta .v{font-size:15px;font-weight:600;margin-top:3px;font-family:var(--mono)}
+
+  /* tabs */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:24px 0 20px;overflow-x:auto}
+  .tab{padding:10px 15px;color:var(--text-muted);font-weight:550;font-size:14px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-bottom-color:var(--brand)}
+  .tabpane{display:none} .tabpane.active{display:block}
+
+  /* AI summary */
+  .ai{position:relative}
+  .ai .tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--brand);background:#0f2723;border:1px solid #16413a;border-radius:var(--radius-pill);padding:3px 10px;margin-bottom:12px}
+  .ai p{margin:0 0 12px}
+  .rootcause{border-left:3px solid var(--indigo);padding:8px 0 8px 14px;margin:14px 0}
+  .rootcause .t{font-weight:650}
+  .conf{font-size:12px;color:var(--text-faint);font-family:var(--mono)}
+  .banner{display:flex;gap:12px;align-items:flex-start;background:#1b1530;border:1px solid #2f2553;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:13px;color:#cdb8ff}
+
+  /* findings */
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:var(--radius-pill);border:1px solid var(--border-strong);background:transparent;color:var(--text-muted);cursor:pointer}
+  .chip.on{background:#16203a;color:var(--text);border-color:var(--brand-strong)}
+  .finding{border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;background:var(--bg-elevated)}
+  .finding .fh{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer}
+  .finding .fh:hover{background:#16203a}
+  .sevbadge{font-family:var(--mono);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:5px}
+  .ftitle{font-weight:600;flex:1}
+  .fcat{font-size:12px;color:var(--text-faint);font-family:var(--mono)}
+  .chev{color:var(--text-faint);transition:transform .15s}
+  .finding.open .chev{transform:rotate(90deg)}
+  .fbody{display:none;padding:0 16px 16px;border-top:1px solid var(--border)}
+  .finding.open .fbody{display:block}
+  .fsection{margin-top:14px}
+  .fsection .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-faint);margin-bottom:6px}
+  .res{display:inline-block;font-family:var(--mono);font-size:12px;background:var(--bg-inset);border:1px solid var(--border);border-radius:5px;padding:2px 8px;margin:0 6px 6px 0}
+  pre.evid{background:var(--bg-inset);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;font-size:12.5px;color:var(--text-muted);overflow-x:auto;margin:0}
+  .evsrc{font-family:var(--mono);font-size:11px;color:var(--text-faint);margin:6px 0 2px}
+  .fix{background:#0f2723;border:1px solid #16413a;border-radius:var(--radius-sm);padding:11px 13px;font-size:13.5px}
+  .fix code{background:#06302a;padding:1px 6px;border-radius:4px;color:#7af0df}
+
+  /* remediation */
+  .remstep{display:flex;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+  .remstep .pri{flex:none;width:30px;height:30px;border-radius:7px;background:#16203a;color:var(--brand);display:grid;place-items:center;font-weight:700;font-family:var(--mono)}
+  .remstep .act{font-weight:600;margin-bottom:3px}
+  .remstep pre{background:var(--bg-inset);border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-size:12.5px;color:#9fe9dc;overflow-x:auto;margin:8px 0 0}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-faint);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-elevated)}
+  td{padding:10px 12px;border-bottom:1px solid var(--border)}
+  td.mono,th.mono{font-family:var(--mono)}
+  tr:hover td{background:#141c30}
+  .pill{font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:var(--radius-pill)}
+  .pill.ok{background:#0e2a20;color:var(--ok)} .pill.bad{background:#2a1320;color:var(--sev-critical)} .pill.warn{background:#2a2410;color:var(--sev-medium)}
+
+  .empty{text-align:center;padding:46px;color:var(--text-faint)}
+  .progress{height:6px;background:var(--bg-inset);border-radius:99px;overflow:hidden;margin-top:18px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--indigo));width:0;transition:width .4s}
+  .hidden{display:none!important}
+
+  @media(max-width:820px){.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;overflow:auto}.side .spacer,.side .foot{display:none}main{padding:20px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="brand"><span class="logo">T</span> Triage</div>
+    <div class="navlink active" data-nav="upload">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg> Analyze
+    </div>
+    <div class="navlink" data-nav="report">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg> Report
+    </div>
+    <div class="navlink" data-nav="history">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 106 5.3L3 8"/><path d="M12 7v5l3 2"/></svg> History
+    </div>
+    <div class="navlink" data-nav="about">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg> How it works
+    </div>
+    <div class="spacer"></div>
+    <div class="foot">Read-only analysis of a static<br/>support bundle. No live cluster access.</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+    <!-- UPLOAD -->
+    <section class="page active" id="page-upload">
+      <h1>Analyze a support bundle</h1>
+      <p class="sub">Drop a Troubleshoot <code>.tar.gz</code> bundle. Triage runs a catalog of Kubernetes failure detectors, then an AI layer writes the root cause and a fix plan — grounded in evidence you can verify.</p>
+
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('file').click()">
+        <svg class="dz-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <div class="big">Drop support-bundle.tar.gz here</div>
+        <div class="muted">or click to browse — processed server-side, nothing leaves your control</div>
+        <input id="file" type="file" accept=".tar.gz,.tgz,.gz" class="hidden"/>
+      </div>
+
+      <div class="row center wrap" style="margin-top:16px;gap:12px">
+        <button class="btn primary" onclick="runSample('')">▶ Analyze sample bundle</button>
+        <button class="btn ghost" onclick="runSample('healthy')">Analyze a healthy bundle</button>
+        <span class="faint">No bundle handy? Try the bundled <span class="mono">acme-shop</span> example (planted failures) or a clean cluster for contrast.</span>
+      </div>
+
+      <div id="progress-wrap" class="hidden">
+        <div class="progress"><i id="bar"></i></div>
+        <div class="faint mono" id="progress-label" style="margin-top:8px">extracting archive…</div>
+      </div>
+
+      <h2>How Triage analyzes</h2>
+      <div class="pipe">
+        <div class="step"><div class="num">1</div><h3>Parse</h3><p>Extract the archive and read cluster-resources, pod logs, events, nodes — defensive to bundle-version layout differences.</p></div>
+        <div class="step"><div class="num">2</div><h3>Detect</h3><p>Run deterministic detectors: crash loops, OOMKills, image-pull errors, unbound PVCs, node pressure, config errors, log patterns. Every hit cites its evidence.</p></div>
+        <div class="step"><div class="num">3</div><h3>Reason</h3><p>An LLM correlates the findings into causal chains, names the most likely root cause, and writes a prioritized remediation plan.</p></div>
+      </div>
+    </section>
+
+    <!-- REPORT -->
+    <section class="page" id="page-report">
+      <div class="row between center" style="margin-bottom:6px">
+        <h1 style="margin:0">Analysis report</h1>
+        <span class="faint mono" id="rpt-file">support-bundle-2026-06-11.tar.gz</span>
+      </div>
+
+      <div class="verdict" id="verdict">
+        <div class="bar" style="background:var(--sev-critical)"></div>
+        <div class="body">
+          <div class="head"><span id="v-emoji">●</span> <span id="v-head">Critical — postgres storage misconfiguration is taking down the app</span></div>
+          <div class="muted" id="v-sub">6 issues across workloads, storage, config and a node. Likely single root cause with a downstream cascade.</div>
+          <div class="counts" id="v-counts"></div>
+        </div>
+      </div>
+
+      <div class="meta" id="meta"></div>
+
+      <div class="tabs" id="report-tabs">
+        <div class="tab active" data-tab="summary">Summary</div>
+        <div class="tab" data-tab="findings">Findings <span class="faint" id="t-fcount">(6)</span></div>
+        <div class="tab" data-tab="remediation">Remediation</div>
+        <div class="tab" data-tab="cluster">Cluster</div>
+        <div class="tab" data-tab="evidence">Evidence</div>
+      </div>
+
+      <!-- summary tab -->
+      <div class="tabpane active" id="tab-summary">
+        <div class="banner hidden" id="ai-off-banner">
+          <span>⚠️</span><div><b>AI reasoning is off.</b> Showing a deterministic summary built from the detectors. Set <code>OPENAI_API_KEY</code> on the server to enable the root-cause narrative and AI remediation plan.</div>
+        </div>
+        <div class="card pad ai">
+          <span class="tag">✦ AI root cause</span>
+          <div id="ai-summary"></div>
+          <h2 style="margin-top:18px;font-size:15px">Most likely root causes</h2>
+          <div id="ai-rootcauses"></div>
+        </div>
+      </div>
+
+      <!-- findings tab -->
+      <div class="tabpane" id="tab-findings">
+        <div class="filters" id="sev-filters"></div>
+        <div class="filters" id="cat-filters"></div>
+        <div id="findings-list"></div>
+      </div>
+
+      <!-- remediation tab -->
+      <div class="tabpane" id="tab-remediation">
+        <div class="card pad">
+          <span class="tag" style="display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--brand);background:#0f2723;border:1px solid #16413a;border-radius:999px;padding:3px 10px;margin-bottom:6px">✦ Prioritized plan</span>
+          <div id="remediation-list"></div>
+        </div>
+      </div>
+
+      <!-- cluster tab -->
+      <div class="tabpane" id="tab-cluster">
+        <h2 style="margin-top:0">Nodes</h2>
+        <div class="card" style="overflow:auto"><table id="nodes-table"></table></div>
+        <h2>Workloads</h2>
+        <div class="card" style="overflow:auto"><table id="workloads-table"></table></div>
+      </div>
+
+      <!-- evidence tab -->
+      <div class="tabpane" id="tab-evidence">
+        <p class="sub">The parsed facts that grounded the findings. Every claim in this report traces back to one of these sources.</p>
+        <div class="card" style="overflow:auto"><table id="evidence-table"></table></div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="page" id="page-history">
+      <h1>History</h1>
+      <p class="sub">Previously analyzed bundles. Click any row to reopen its report.</p>
+      <div class="card" style="overflow:auto"><table id="history-table"></table></div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="page" id="page-about">
+      <h1>How it works</h1>
+      <p class="sub">Triage pairs a grounded deterministic core with an LLM that reasons over the facts — not the raw logs.</p>
+
+      <div class="card pad">
+        <h2 style="margin-top:0">The pipeline</h2>
+        <p class="muted"><b style="color:var(--text)">1. Parse.</b> The bundle is extracted server-side and walked. Triage discovers <span class="mono">cluster-resources</span> JSON (pods, deployments, statefulsets, events, nodes, PVCs, configmaps, storageclasses) and pod log files, tolerating layout differences between Troubleshoot versions.</p>
+        <p class="muted"><b style="color:var(--text)">2. Detect.</b> A catalog of deterministic detectors runs over the parsed model. Each emits findings with a severity, the affected resources, and an evidence excerpt with its source path — so nothing is asserted without proof.</p>
+        <p class="muted"><b style="color:var(--text)">3. Reason.</b> The findings (not the megabytes of raw logs) are distilled into a compact digest and sent to an LLM acting as a senior K8s support engineer. It correlates findings into causal chains, names the most likely root cause, and writes a prioritized fix plan. With no API key, this step is replaced by a deterministic summary.</p>
+      </div>
+
+      <h2>Detector catalog</h2>
+      <div class="card pad">
+        <div class="pipe" style="grid-template-columns:repeat(2,1fr)">
+          <div class="step"><h3>Workloads</h3><p>CrashLoopBackOff, OOMKilled (exit 137), high restart counts, ImagePullBackOff / ErrImagePull, CreateContainerConfigError, Pending / unschedulable pods, replica shortfalls.</p></div>
+          <div class="step"><h3>Nodes</h3><p>NotReady, MemoryPressure / DiskPressure / PIDPressure, kubelet not posting status, capacity vs. allocatable.</p></div>
+          <div class="step"><h3>Storage</h3><p>PVCs stuck Pending, missing StorageClass, no matching PersistentVolume, provisioning failures.</p></div>
+          <div class="step"><h3>Config</h3><p>Missing ConfigMap / Secret keys referenced by containers, env wiring errors.</p></div>
+          <div class="step"><h3>Events</h3><p>Warning-event aggregation by reason: FailedScheduling, BackOff, Unhealthy, FailedMount, ProvisioningFailed.</p></div>
+          <div class="step"><h3>Logs</h3><p>Pattern scan for panics, OOM, connection-refused, TLS/cert errors, permission denied, DB connection failures — with line counts and sample lines.</p></div>
+        </div>
+      </div>
+
+      <h2>Privacy</h2>
+      <div class="card pad"><p class="muted" style="margin:0">Bundles are processed server-side and not shared with third parties beyond the optional LLM call, which receives only a distilled digest of findings and capped log excerpts — never the full archive. The bundle is read-only; Triage never touches a live cluster.</p></div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* Triage frontend — talks to the server API. Renders the Analysis object the
+   backend returns (same shape the analysis engine produces). */
+
+let currentAnalysis = null;
+
+/* ---------- severity helpers ---------- */
+const SEV=["critical","high","medium","low","info"];
+const sevColor=s=>({critical:"var(--sev-critical)",high:"var(--sev-high)",medium:"var(--sev-medium)",low:"var(--sev-low)",info:"var(--sev-info)"}[s]);
+const sevBg=s=>({critical:"#2a1320",high:"#2a1a10",medium:"#2a2410",low:"#0f1f33",info:"#1a1f2c"}[s]);
+function esc(t){return String(t==null?"":t).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}
+
+async function api(path,opts){
+  const r=await fetch(path,opts);
+  if(!r.ok){let m;try{m=(await r.json()).error}catch(e){m=r.statusText}throw new Error(m||"request failed");}
+  return r.json();
+}
+
+/* ---------- nav ---------- */
+document.querySelectorAll('.navlink').forEach(n=>n.onclick=()=>go(n.dataset.nav));
+function go(name){
+  if(name==='report'&&!currentAnalysis)name='upload';
+  document.querySelectorAll('.navlink').forEach(n=>n.classList.toggle('active',n.dataset.nav===name));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(name==='report')renderReport(currentAnalysis);
+  if(name==='history')renderHistory();
+  window.scrollTo(0,0);
+}
+
+/* ---------- report tabs ---------- */
+document.querySelectorAll('#report-tabs .tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('#report-tabs .tab').forEach(x=>x.classList.toggle('active',x===t));
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+t.dataset.tab).classList.add('active');
+});
+function resetTabs(){document.querySelectorAll('#report-tabs .tab').forEach((x,i)=>x.classList.toggle('active',i===0));document.querySelectorAll('.tabpane').forEach((p,i)=>p.classList.toggle('active',i===0));}
+
+/* ---------- analysis flow ---------- */
+let progressTimer=null;
+function startProgress(){
+  const w=document.getElementById('progress-wrap'),bar=document.getElementById('bar'),lbl=document.getElementById('progress-label');
+  w.classList.remove('hidden');
+  const steps=[["extracting archive…",18],["parsing cluster-resources…",42],["running detectors…",66],["correlating with AI…",86]];
+  let i=0;bar.style.width='6%';
+  clearInterval(progressTimer);
+  progressTimer=setInterval(()=>{if(i<steps.length){lbl.textContent=steps[i][0];bar.style.width=steps[i][1]+'%';i++;}},500);
+}
+function stopProgress(){
+  clearInterval(progressTimer);
+  const w=document.getElementById('progress-wrap'),bar=document.getElementById('bar');
+  bar.style.width='100%';setTimeout(()=>{w.classList.add('hidden');bar.style.width='0';},350);
+}
+function showAnalysis(a){currentAnalysis=a;resetTabs();renderReport(a);go('report');}
+
+async function runSample(which){
+  startProgress();
+  try{const a=await api('/api/analyze-sample'+(which?('?which='+which):''),{method:'POST'});stopProgress();showAnalysis(a);}
+  catch(e){stopProgress();alert('Analysis failed: '+e.message);}
+}
+document.getElementById('file').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const fd=new FormData();fd.append('bundle',f);
+  startProgress();
+  try{const a=await api('/api/analyze',{method:'POST',body:fd});stopProgress();showAnalysis(a);}
+  catch(err){stopProgress();alert('Analysis failed: '+err.message);}
+  e.target.value='';
+});
+
+/* drag & drop */
+const dz=document.getElementById('dropzone');
+['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.style.borderColor='var(--brand)';}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.style.borderColor='';}));
+dz.addEventListener('drop',async e=>{
+  const f=e.dataTransfer.files[0];if(!f)return;
+  const fd=new FormData();fd.append('bundle',f);
+  startProgress();
+  try{const a=await api('/api/analyze',{method:'POST',body:fd});stopProgress();showAnalysis(a);}
+  catch(err){stopProgress();alert('Analysis failed: '+err.message);}
+});
+
+/* ---------- render report ---------- */
+function renderReport(a){
+  if(!a)return;
+  document.getElementById('rpt-file').textContent=a.filename;
+  const v=document.getElementById('verdict');
+  const accent=a.verdict.level==='warning'?'medium':a.verdict.level==='healthy'?'info':'critical';
+  v.querySelector('.bar').style.background=a.verdict.level==='healthy'?'var(--ok)':sevColor(accent);
+  document.getElementById('v-emoji').style.color=a.verdict.level==='healthy'?'var(--ok)':sevColor(accent);
+  document.getElementById('v-head').textContent=a.verdict.headline;
+  document.getElementById('v-sub').textContent=a.verdict.sub||'';
+  document.getElementById('v-counts').innerHTML=SEV.map(s=>{const n=(a.severityCounts||{})[s]||0;return n?`<span class="count"><span class="dot" style="background:${sevColor(s)}"></span>${n} ${s}</span>`:''}).join('')||'<span class="count"><span class="dot" style="background:var(--ok)"></span>no issues</span>';
+  const m=a.meta;
+  document.getElementById('meta').innerHTML=[
+    ["Cluster",m.clusterVersion||'?'],["Collected",m.collectedAt?m.collectedAt.replace('T',' ').replace('Z',''):'—'],["Nodes",m.nodeCount],
+    ["Namespaces",m.namespaceCount],["Pods",`${m.runningPods}/${m.podCount} running`],["Failing pods",m.failingPods],
+    ["Bundle size",(a.sizeBytes/1048576).toFixed(1)+" MB"]
+  ].map(([k,val])=>`<div class="m"><div class="k">${k}</div><div class="v">${val}</div></div>`).join('');
+  document.getElementById('t-fcount').textContent=`(${a.findings.length})`;
+  document.getElementById('ai-off-banner').classList.toggle('hidden',a.aiEnabled);
+  if(a.ai){
+    document.getElementById('ai-summary').innerHTML=mdToHtml(a.ai.summary);
+    document.getElementById('ai-rootcauses').innerHTML=(a.ai.rootCauses||[]).map(r=>
+      `<div class="rootcause"><div class="t">${esc(r.title)} <span class="conf">· ${esc(r.confidence)} confidence</span></div>
+       <div class="muted" style="font-size:13.5px">${esc(r.reasoning)}</div>
+       <div class="faint mono" style="font-size:11px;margin-top:4px">${(r.relatedFindingIds||[]).join(', ')}</div></div>`).join('')||'<div class="faint">No distinct root cause identified.</div>';
+    document.getElementById('remediation-list').innerHTML=(a.ai.remediation||[]).map(s=>
+      `<div class="remstep"><div class="pri">${s.priority}</div><div style="flex:1">
+        <div class="act">${esc(s.action)}</div><div class="muted" style="font-size:13.5px">${esc(s.rationale)}</div>
+        ${s.commands&&s.commands.length?`<pre>${s.commands.map(esc).join('\n')}</pre>`:''}</div></div>`).join('');
+  }
+  renderFindings(a);renderCluster(a);renderEvidence(a);
+}
+function mdToHtml(t){return '<p>'+esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/`(.+?)`/g,'<code>$1</code>').replace(/_(.+?)_/g,'<i>$1</i>').replace(/\n\n/g,'</p><p>').replace(/\n/g,'<br/>')+'</p>';}
+
+let sevFilter=new Set(SEV),catFilter=null;
+function renderFindings(a){
+  const cats=[...new Set(a.findings.map(f=>f.category))];
+  document.getElementById('sev-filters').innerHTML=SEV.map(s=>`<span class="chip ${sevFilter.has(s)?'on':''}" data-sev="${s}"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${sevColor(s)};margin-right:6px"></span>${s}</span>`).join('');
+  document.getElementById('cat-filters').innerHTML=`<span class="chip ${!catFilter?'on':''}" data-cat="">all categories</span>`+cats.map(c=>`<span class="chip ${catFilter===c?'on':''}" data-cat="${c}">${c}</span>`).join('');
+  document.querySelectorAll('#sev-filters .chip').forEach(c=>c.onclick=()=>{const s=c.dataset.sev;sevFilter.has(s)?sevFilter.delete(s):sevFilter.add(s);renderFindings(a);});
+  document.querySelectorAll('#cat-filters .chip').forEach(c=>c.onclick=()=>{catFilter=c.dataset.cat||null;renderFindings(a);});
+  const list=a.findings.filter(f=>sevFilter.has(f.severity)&&(!catFilter||f.category===catFilter));
+  document.getElementById('findings-list').innerHTML=list.length?list.map(f=>`
+    <div class="finding">
+      <div class="fh" onclick="this.parentElement.classList.toggle('open')">
+        <span class="sevbadge" style="color:${sevColor(f.severity)};background:${sevBg(f.severity)}">${f.severity}</span>
+        <span class="ftitle">${esc(f.title)}</span>
+        <span class="fcat">${esc(f.category)}</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+      </div>
+      <div class="fbody">
+        <div class="fsection"><div class="lbl">What's happening</div><div class="muted">${esc(f.summary)}</div></div>
+        <div class="fsection"><div class="lbl">Affected resources</div>${f.affectedResources.length?f.affectedResources.map(r=>`<span class="res">${esc(r.kind)}/${r.namespace?esc(r.namespace)+'/':''}${esc(r.name)}</span>`).join(''):'<span class="faint">cluster-wide</span>'}</div>
+        <div class="fsection"><div class="lbl">Evidence</div>${f.evidence.map(e=>`<div class="evsrc">${esc(e.source)}</div><pre class="evid">${esc(e.excerpt)}</pre>`).join('')}</div>
+        <div class="fsection"><div class="lbl">Remediation</div><div class="fix">${esc(f.remediation)}${f.docsUrl?` &nbsp;<a href="${esc(f.docsUrl)}" target="_blank" rel="noopener">docs ↗</a>`:''}</div></div>
+      </div>
+    </div>`).join(''):`<div class="empty">No findings match the current filters.</div>`;
+}
+function renderCluster(a){
+  document.getElementById('nodes-table').innerHTML=`<thead><tr><th class="mono">node</th><th>status</th><th>roles</th><th class="mono">version</th><th class="mono">cpu</th><th class="mono">mem</th><th>pressure</th></tr></thead><tbody>`+
+    (a.nodes||[]).map(n=>`<tr><td class="mono">${esc(n.name)}</td><td><span class="pill ${n.status==='Ready'?'ok':'bad'}">${esc(n.status)}</span></td><td>${esc(n.roles)}</td><td class="mono">${esc(n.version)}</td><td class="mono">${esc(n.cpu)}</td><td class="mono">${esc(n.mem)}</td><td>${n.pressure==='—'?'<span class="faint">—</span>':'<span class="pill warn">'+esc(n.pressure)+'</span>'}</td></tr>`).join('')+`</tbody>`;
+  document.getElementById('workloads-table').innerHTML=`<thead><tr><th>kind</th><th class="mono">namespace</th><th class="mono">name</th><th>ready</th></tr></thead><tbody>`+
+    (a.workloads||[]).map(w=>`<tr><td>${esc(w.kind)}</td><td class="mono">${esc(w.ns)}</td><td class="mono">${esc(w.name)}</td><td><span class="pill ${w.state==='ok'?'ok':'bad'}">${w.ready}/${w.desired} ready</span></td></tr>`).join('')+`</tbody>`;
+}
+function renderEvidence(a){
+  const rows=[];a.findings.forEach(f=>f.evidence.forEach(e=>rows.push({f:f.id,sev:f.severity,src:e.source,ex:e.excerpt})));
+  document.getElementById('evidence-table').innerHTML=`<thead><tr><th class="mono">finding</th><th class="mono">source</th><th>excerpt</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td class="mono"><span class="sevbadge" style="color:${sevColor(r.sev)};background:${sevBg(r.sev)}">${r.f}</span></td><td class="mono" style="font-size:11.5px;color:var(--text-faint)">${esc(r.src)}</td><td><pre class="evid" style="white-space:pre-wrap">${esc(r.ex)}</pre></td></tr>`).join('')+`</tbody>`;
+}
+
+/* ---------- history ---------- */
+async function renderHistory(){
+  const t=document.getElementById('history-table');
+  let rows=[];
+  try{rows=await api('/api/analyses');}catch(e){}
+  if(!rows.length){t.innerHTML=`<tbody><tr><td class="empty">No analyses yet. Run one from the Analyze tab.</td></tr></tbody>`;return;}
+  t.innerHTML=`<thead><tr><th class="mono">bundle</th><th>verdict</th><th>findings</th><th>AI</th><th class="mono">analyzed</th></tr></thead><tbody>`+
+    rows.map(h=>{const c=h.severityCounts||{};return `<tr style="cursor:pointer" onclick="loadAnalysis('${h.id}')"><td class="mono">${esc(h.filename)}</td><td><span class="pill ${h.level==='healthy'?'ok':h.level==='warning'?'warn':'bad'}">${h.level}</span></td><td>${SEV.filter(s=>c[s]).map(s=>`<span class="sevbadge" style="margin-right:4px;color:${sevColor(s)};background:${sevBg(s)}">${c[s]} ${s[0].toUpperCase()}</span>`).join('')||'<span class="faint">clean</span>'}</td><td>${h.aiEnabled?'<span class="pill ok">on</span>':'<span class="faint">off</span>'}</td><td class="mono faint">${esc((h.analyzedAt||'').replace('T',' ').slice(0,19))}</td></tr>`}).join('')+`</tbody>`;
+}
+async function loadAnalysis(id){try{const a=await api('/api/analyses/'+id);showAnalysis(a);}catch(e){alert(e.message);}}
+
+</script>
+</body>
+</html>
