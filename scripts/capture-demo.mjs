@@ -74,8 +74,9 @@ async function beat(id, fn) {
 
 await beat(1, async (page, s) => {
   await page.goto(BASE, { waitUntil: "networkidle" });
-  await sleep(Math.min(3, s / 3));
-  await page.locator(".pipe").scrollIntoViewIfNeeded();
+  await sleep(Math.min(4, s / 3));
+  await page.locator("#page-upload .pipe").first().scrollIntoViewIfNeeded();
+  await sleep(2);
 });
 
 await beat(2, async (page) => {
